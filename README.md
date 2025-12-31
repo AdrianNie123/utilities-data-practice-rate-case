@@ -14,64 +14,43 @@ The pipeline extracts, transforms, and combines data from multiple sources to cr
 ## Data Sources
 
 ### EIA-861 (Energy Information Administration)
-- **Location**: `data/EIA/`
 - **Files**: `Sales_Ult_Cust_{2018-2023}.xlsx`
 - **Content**: Sales, revenue, and customer count data by sector (residential, commercial, industrial)
 
 ### FERC Form 1 (Federal Energy Regulatory Commission)
-- **Location**: `data/FERC/`
 - **Files**: 
-  - Operating expenses (Schedule 320)
+  - Op. expenses (Schedule 320)
   - Utility plant summary (Schedule 200)
   - Income statements (Schedule 114)
-  - Utility association mapping
 - **Content**: Financial statements, O&M expenses by account, rate base data
 
 ## Project Structure
 
 ```
 rate-case-analysis/
+├── practice-notebooks/
 ├── data/
 │   ├── EIA/                    # EIA-861 Excel files
 │   ├── FERC/                   # FERC Form 1 parquet files
 │   └── processed/              # Output directory
 ├── src/
+|   ├── analyze.py             # Analyze and summarize data
+|   ├── bill_impact.py         # Customer Impact and bill impact analysis
+|   ├── revenue_requirement.py # Calc RR, OM, Mock Rate Base,..
 │   ├── config.py              # Constants and mappings
-│   ├── extract.py             # Data loading functions
-│   ├── transform.py           # Transformation functions
-│   └── pipeline.py            # Main orchestration
+│   ├── extract.py             # Data loading funcs
+│   ├── transform.py           # Transformation funcs
+|   ├── visualize.py           # Visualizations MatPlotLib
+│   └── pipeline.py            # Main
 ├── requirements.txt
 └── README.md
 ```
 
-## Installation
 
-1. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-Run the complete pipeline:
-
-```
-To run the pipeline in the future, activate the virtual environment first:
-source venv/bin/activate
-python -m src.pipeline
-The output is saved to data/processed/analysis_ready.parquet and is ready for analysis.
-```
-
-The pipeline will:
+Data pipeline 
 1. Extract data from EIA Excel files and FERC parquet files
 2. Transform and categorize operating expenses
-3. Join FERC and EIA data using utility ID mappings
+3. Join FERC and EIA data w/ utility ID mappings
 4. Derive calculated metrics (O&M per customer, O&M per MWh, etc.)
 5. Export to `data/processed/analysis_ready.parquet`
 
@@ -113,7 +92,7 @@ Operating expenses are categorized by FERC account code ranges:
 
 ## Data Validation
 
-The pipeline includes validation checks:
+Data pipeline includes validation checks:
 - Required columns present
 - Expected row counts (3 utilities × 6 years)
 - No null values in critical columns
@@ -121,14 +100,16 @@ The pipeline includes validation checks:
 
 ## Error Handling
 
-The pipeline raises specific exceptions for:
+Built pipeline to raise specific exceptions for:
 - Missing input files (`FileNotFoundError`)
 - Data validation failures (`ValueError`)
 - Missing required columns
 
 ## Data Limitations
 
-**Note:** FERC Form 1 data from PUDL may have varying completeness across utilities. SCE and SDG&E show lower O&M and rate base values in the source data compared to actual regulatory filings. PG&E data appears most complete. For production use, supplement with direct FERC filings or utility-provided data.
+- No confidential paperwork > Can't verify item costs, specific projects/contracts
+    - Used aggregate categories; analysis serves mainly as baseline check not detailed audit
+ 
 
 ## Revenue Requirement and Bill Impact Modules
 
@@ -137,15 +118,16 @@ The pipeline raises specific exceptions for:
 Calculates utility revenue requirement using standard regulatory formula:
 
 ```
-Revenue Requirement = O&M + Depreciation + Return on Rate Base + Taxes
+Revenue Requirement = O&M + Depreciation + Return on Rate Base + Taxes?
 ```
 
 **Assumptions (documented in code):**
 - Depreciation rate: 3.5% of rate base (~30-year asset life)
 - WACC: 7.5% (approximates CPUC-authorized returns)
 - Tax rate: 27% (federal 21% + state 6%)
+- Forecast review -> used historical actuals + standard escalaton (EIA-861), cant directly evaluate proposals
 
-Key functions:
+Note functions:
 - `calculate_revenue_requirement()`: Single utility-year calculation
 - `apply_rr_to_dataset()`: Apply to full dataset with revenue gap analysis
 - `forecast_test_year()`: Project RR with escalation factors
@@ -165,55 +147,30 @@ Estimates residential monthly bill changes:
 
 ## Visualization Module
 
-The `src/visualize.py` module generates professional charts for regulatory staff reports.
+ `src/visualize.py` module that generates charts from reports.
 
-### Available Charts
+### Attached Charts Below
 
-1. **O&M Trend** (`plot_om_trend`): Line chart showing O&M trends 2018-2023 with CAGR
-2. **Peer Comparison** (`plot_peer_comparison`): Horizontal bar chart of cost per customer
-3. **RR Waterfall** (`plot_rr_waterfall`): Waterfall chart of revenue requirement components
-4. **Revenue Gap** (`plot_revenue_gap`): Bar chart comparing RR to actual revenue
-5. **Bill Impact** (`plot_bill_impact`): Grouped bar chart of current vs projected bills
-6. **YoY Heatmap** (`plot_yoy_heatmap`): Heatmap of year-over-year O&M changes
-
-### Running Visualizations
-
-```bash
-python -m src.visualize
-```
-
-All figures are saved to `outputs/figures/` at 300 dpi PNG format.
-
-### Color Scheme
-- PG&E: #1f77b4 (blue)
-- SCE: #ff7f0e (orange)
-- SDG&E: #2ca02c (green)
+1. **O&M Trend (2018-2023)** 
+2. **Peer Comparison** 
+3. **RR Waterfall** 
+4. **Revenue Gap** 
+5. **Bill Impact** 
+6. **YoY Heatmap** 
 
 ## Analysis Module
 
-The `src/analyze.py` module provides comprehensive analysis functions:
+ `src/analyze.py` module: comprehensive analysis functions
 
-### Available Functions
+### Demonstrated Functions Below
 
-1. **Trend Analysis** (`trend_analysis`): Calculates linear regression, CAGR, and descriptive statistics for a utility and metric
-2. **Cost Driver Regression** (`cost_driver_regression`): OLS regression of O&M costs on customers, sales, and rate base
-3. **Outlier Detection** (`detect_outliers`): Z-score based outlier identification
-4. **Peer Benchmarking** (`peer_benchmark`): Utility rankings and percentiles for a given year
-5. **Year-over-Year Change** (`calculate_yoy_change`): Calculates YoY percent changes
-6. **Summary Statistics** (`summary_by_utility`): Aggregated statistics by utility
-7. **Run All Analyses** (`run_analysis`): Orchestrates all analyses and returns results
-
-### Running Analysis
-
-```bash
-python3 -c run_analysis.py
-```
-
-This will:
-- Load the analysis-ready dataset
-- Execute all analyses
-- Print key findings
-- Save results to `data/processed/analysis_results.json`
+1. **Trend Analysis** : Calculates linear regression, CAGR, and descriptive statistics for a utility and metric
+2. **Cost Driver Regression** : OLS regression of O&M costs on customers, sales, and rate base
+3. **Outlier Detection** : Z-score based outlier identification
+4. **Peer Benchmarking** : Utility rankings and percentiles for a given year
+5. **Year-over-Year Change** : Calculates YoY percent changes
+6. **Summary Statistics** : Aggregated statistics by utility
+7. **Run All Analyses** : Orchestrates all analyses and returns results
 
 ### Key Findings Output
 
@@ -223,9 +180,6 @@ The analysis prints:
 - Statistically significant cost drivers
 - Detected outlier years
 
-## License
 
-This project is for regulatory analysis purposes.
-
-visualization:
+visualization function:
 python3 -c "from src.visualize import generate_all_figures; generate_all_figures()"
