@@ -33,7 +33,7 @@ Deliverables:
     - Data pipeline (Python ETL extract/clean/joining FERC/EIA data)
     - Analysis Module (Stat analysis -- Regression, trend, benchmark, outliers)
     - Rev. Req. Model (Calc RR w/ Gap Analysis and Test-year projection)
-    - Bill Impact Calc (Resident. bill projection (add sensitivity analysis scenarios)
+    - Bill Impact Calc (Resident. bill projection (could add sensitivity analysis scenarios)
     - Visualization (Need to finish) (Trend charts, peer comparison, bill impact)
     - Exec. Summary (Conclusive findings and staff-style recommendation)
 
