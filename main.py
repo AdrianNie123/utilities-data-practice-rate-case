@@ -1,0 +1,10 @@
+import pandas as pd
+df = pd.read_parquet('data/processed/analysis_ready.parquet')
+print('Shape:', df.shape)
+print('\nUtilities:', df['utility_name'].unique())
+print('\nYears:', sorted(df['report_year'].unique()))
+print('\nNull counts:')
+print(df.isnull().sum())
+print('\nSample row:')
+print(df.iloc[0])
+print(df.head(20).to_string())

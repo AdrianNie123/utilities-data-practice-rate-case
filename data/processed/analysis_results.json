@@ -1,0 +1,348 @@
+{
+  "trend_results": {
+    "PG&E": {
+      "utility_id": 183,
+      "metric": "om_total",
+      "slope": -1123499885.7142856,
+      "intercept": 2286678810989.714,
+      "r_squared": 0.3879113656900098,
+      "p_value": 0.18656254443346976,
+      "cagr_percent": -5.408521358326357,
+      "mean": 16647291904.0,
+      "std": 3374743552.0,
+      "coefficient_of_variation": 20.27202725501028,
+      "n_years": 5
+    },
+    "SDG&E": {
+      "utility_id": 218,
+      "metric": "om_total",
+      "slope": 85635562.05714285,
+      "intercept": -169850030800.45712,
+      "r_squared": 0.31471395796375995,
+      "p_value": 0.2467856921194419,
+      "cagr_percent": 0.6199570083240236,
+      "mean": 3176622336.0,
+      "std": 285581568.0,
+      "coefficient_of_variation": 8.990101365326419,
+      "n_years": 5
+    },
+    "SCE": {
+      "utility_id": 155,
+      "metric": "om_total",
+      "slope": 357246361.6,
+      "intercept": -710730952396.8,
+      "r_squared": 0.3683847554572271,
+      "p_value": 0.20137440849074634,
+      "cagr_percent": 0.7381521408600378,
+      "mean": 11085321216.0,
+      "std": 1101161472.0,
+      "coefficient_of_variation": 9.933509823879875,
+      "n_years": 5
+    }
+  },
+  "regression_model": "<statsmodels.regression.linear_model.RegressionResultsWrapper object at 0x7ff3517c91c0>",
+  "regression_summary": "                            OLS Regression Results                            \n==============================================================================\nDep. Variable:               om_total   R-squared:                       0.658\nModel:                            OLS   Adj. R-squared:                  0.585\nMethod:                 Least Squares   F-statistic:                     8.977\nDate:                Mon, 29 Dec 2025   Prob (F-statistic):            0.00144\nTime:                        16:23:33   Log-Likelihood:                -420.66\nNo. Observations:                  18   AIC:                             849.3\nDf Residuals:                      14   BIC:                             852.9\nDf Model:                           3                                         \nCovariance Type:            nonrobust                                         \n===================================================================================\n                      coef    std err          t      P>|t|      [0.025      0.975]\n-----------------------------------------------------------------------------------\nconst           -3.093e+09    3.8e+09     -0.814      0.429   -1.12e+10    5.05e+09\ncustomers_total  5095.2992   5503.951      0.926      0.370   -6709.502    1.69e+04\nsales_mwh_total  -342.8755    357.005     -0.960      0.353   -1108.576     422.825\nrate_base           0.3805      0.101      3.767      0.002       0.164       0.597\n==============================================================================\nOmnibus:                        9.296   Durbin-Watson:                   0.587\nProb(Omnibus):                  0.010   Jarque-Bera (JB):                6.246\nSkew:                           1.233   Prob(JB):                       0.0440\nKurtosis:                       4.499   Cond. No.                     1.46e+11\n==============================================================================\n\nNotes:\n[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.\n[2] The condition number is large, 1.46e+11. This might indicate that there are\nstrong multicollinearity or other numerical problems.",
+  "vif": [
+    {
+      "variable": "customers_total",
+      "vif": 57.782563519653614
+    },
+    {
+      "variable": "sales_mwh_total",
+      "vif": 64.7431650671463
+    },
+    {
+      "variable": "rate_base",
+      "vif": 2.4368327102023537
+    }
+  ],
+  "outliers": [],
+  "benchmarks": [
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "om_per_customer": 7161.429477368702,
+      "z_score": 0.8353685327263534,
+      "percentile": 100.0,
+      "rank": 1
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "om_per_customer": 5994.193709729962,
+      "z_score": 0.27269212438173074,
+      "percentile": 66.66666666666666,
+      "rank": 2
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "om_per_customer": 3129.9114883319553,
+      "z_score": -1.1080606571080838,
+      "percentile": 33.33333333333333,
+      "rank": 3
+    }
+  ],
+  "yoy_changes": [
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2018,
+      "metric_value": 11015888896.0,
+      "yoy_pct_change": null
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2019,
+      "metric_value": 9162463232.0,
+      "yoy_pct_change": -16.825021743774414
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2020,
+      "metric_value": 11059161088.0,
+      "yoy_pct_change": 20.700742721557617
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2021,
+      "metric_value": 11275325440.0,
+      "yoy_pct_change": 1.9546178579330444
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2022,
+      "metric_value": 12570588160.0,
+      "yoy_pct_change": 11.48758602142334
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "report_year": 2023,
+      "metric_value": 11428505600.0,
+      "yoy_pct_change": -9.085354804992676
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2018,
+      "metric_value": 20062892032.0,
+      "yoy_pct_change": null
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2019,
+      "metric_value": 21445285888.0,
+      "yoy_pct_change": 6.8903021812438965
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2020,
+      "metric_value": 12696470528.0,
+      "yoy_pct_change": -40.79598617553711
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2021,
+      "metric_value": 14699868160.0,
+      "yoy_pct_change": 15.779170036315918
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2022,
+      "metric_value": 15785887744.0,
+      "yoy_pct_change": 7.3879547119140625
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "report_year": 2023,
+      "metric_value": 15193352192.0,
+      "yoy_pct_change": -3.753577470779419
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2018,
+      "metric_value": 2979316736.0,
+      "yoy_pct_change": null
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2019,
+      "metric_value": 2903833600.0,
+      "yoy_pct_change": -2.53357195854187
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2020,
+      "metric_value": 3128564480.0,
+      "yoy_pct_change": 7.739110469818115
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2021,
+      "metric_value": 3277905408.0,
+      "yoy_pct_change": 4.773464679718018
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2022,
+      "metric_value": 3697293568.0,
+      "yoy_pct_change": 12.794394493103027
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "report_year": 2023,
+      "metric_value": 3072821504.0,
+      "yoy_pct_change": -16.889976501464844
+    }
+  ],
+  "utility_summaries": [
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "metric": "om_total",
+      "mean": 16647291904.0,
+      "std": 3374743808.0,
+      "min": 12696470528.0,
+      "max": 21445285888.0,
+      "cagr_percent": 6.167161464691162,
+      "n_years": 3
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "metric": "om_per_customer",
+      "mean": 6598.945459271232,
+      "std": 1218.2963781226842,
+      "min": 5154.1877758206265,
+      "max": 8137.7297186534615,
+      "cagr_percent": 11.586886738255785,
+      "n_years": 3
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "metric": "om_per_mwh",
+      "mean": 475.62599152422257,
+      "std": 93.99183341757072,
+      "min": 350.40259694561047,
+      "max": 588.1518717611797,
+      "cagr_percent": 17.43412138164977,
+      "n_years": 3
+    },
+    {
+      "utility_id_ferc1": 183,
+      "utility_name": "PG&E",
+      "metric": "rate_base",
+      "mean": 41068163072.0,
+      "std": 4546911232.0,
+      "min": 34307624960.0,
+      "max": 47384702976.0,
+      "cagr_percent": 5.132508277893066,
+      "n_years": 3
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "metric": "om_total",
+      "mean": 3176622336.0,
+      "std": 285581568.0,
+      "min": 2903833600.0,
+      "max": 3697293568.0,
+      "cagr_percent": 0.619959831237793,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "metric": "om_per_customer",
+      "mean": 3097.777806827982,
+      "std": 1615.1456149996363,
+      "min": 1999.6953457591496,
+      "max": 5994.193709729962,
+      "cagr_percent": 23.78052407195841,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "metric": "om_per_mwh",
+      "mean": 340.83004030468317,
+      "std": 190.21973115570066,
+      "min": 196.7973162843993,
+      "max": 665.1893332328889,
+      "cagr_percent": 27.580770582314607,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 218,
+      "utility_name": "SDG&E",
+      "metric": "rate_base",
+      "mean": 12944020480.0,
+      "std": 1629421696.0,
+      "min": 11299091456.0,
+      "max": 15465682944.0,
+      "cagr_percent": 6.479287147521973,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "metric": "om_total",
+      "mean": 11085321216.0,
+      "std": 1101161472.0,
+      "min": 9162463232.0,
+      "max": 12570588160.0,
+      "cagr_percent": 0.7381558418273926,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "metric": "om_per_customer",
+      "mean": 2765.428016993699,
+      "std": 451.6771588071103,
+      "min": 2222.6069198505656,
+      "max": 3291.347658709763,
+      "cagr_percent": 7.086291502656339,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "metric": "om_per_mwh",
+      "mean": 191.23681881994415,
+      "std": 37.739733678396775,
+      "min": 147.16545242567946,
+      "max": 235.67587636439478,
+      "cagr_percent": 9.471456248814935,
+      "n_years": 5
+    },
+    {
+      "utility_id_ferc1": 155,
+      "utility_name": "SCE",
+      "metric": "rate_base",
+      "mean": 42322235392.0,
+      "std": 5483561472.0,
+      "min": 34436042752.0,
+      "max": 48342413312.0,
+      "cagr_percent": 7.019519805908203,
+      "n_years": 5
+    }
+  ]
+}
