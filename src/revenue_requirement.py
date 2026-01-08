@@ -1,11 +1,11 @@
 """Revenue requirement calculations for Rate Case Analysis.
 
-ASSUMPTIONS (Industry Standards):
+ASSUMPTIONS (Industry Standards?):
 - Depreciation rate: 3.5% of rate_base (typical utility asset life ~30 years)
 - WACC (Weighted Average Cost of Capital): 7.5% (approximates CPUC-authorized returns)
 - Tax rate: 27% (combined federal 21% + state 6%)
 
-These assumptions are used because the actual values are not available in the dataset.
+These assumptions are used because the actual values are not available in our datasets.
 In a real rate case, these would be determined through regulatory proceedings.
 """
 
@@ -38,14 +38,14 @@ def calculate_revenue_requirement(
     - Return on rate base: Rate base × WACC (7.5%)
     - Taxes: Gross-up for income taxes at 27%
 
-    Note: By default, excludes 'om_other' which includes purchased power (account 555)
+    Note: Excludes 'om_other' which includes purchased power (account 555)
     and other pass-through costs that are recovered directly from customers.
 
-    Args:
-        row: Series with om_total, om_other, and rate_base values
+    Arg:
+        row: om_total, om_other, and rate_base values
         depreciation_rate: Annual depreciation as fraction of rate_base
         wacc: Weighted average cost of capital
-        tax_rate: Combined income tax rate
+        tax_rate: Combined tax rate
         exclude_passthrough: If True, exclude om_other (purchased power) from O&M
 
     Returns:

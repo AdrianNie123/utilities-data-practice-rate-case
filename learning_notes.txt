@@ -1,0 +1,170 @@
+PROJECT ON UTILITY SECTOR
+
+UNDERSTANDING
+ 1. Utility files GRC -> Staff Analysis -> Challenge -> Hearings -> Proposed Decision -> Commission Vote -> Final Decision: Approved/Modified/Denied
+
+    2. From CPUC YT video: PHASE 1: Determines total amount a utility is auth. to collect from customers
+                           PHASE 2: Determines how COSTS are shared amongst various types of customers (residential, commerical, industrial)
+                            -- GRC: Determines approved COST and recovery of those costs should be shared between customers
+Project Scope:
+- Gain familiarity and competency by practicing data-driven analysis using publicly-available federal regulatory data (FERC Form 1 via PUDL, EIA-861) on three of California's major electric utilities (PG&E, SCE, SDG&E) in a practice-level Rate Case Analysis.
+- RR Requirement, Cost reasonableness, Data preparation and ingestion, Bill Impact, 
+- Rough % of full GRC scope
+
+Scope Boundaries:
+ -"This project demonstrates core rate case analytical methods using publicly available FERC and EIA data. 
+    A complete GRC analysis would additionally include more information like cost allocation studies, rate design review, and evaluation of utility-specific projects using confidential workpapers.
+    - OM Expense Analysis via FERC category
+    - Total Utility rate base and revenue requirement 
+    - Residential bill impact using actual revenue shares
+    - Multi-year trend and peer comparison
+    - OUR PROJECT:(BASELINE CHECK) Tests only if historical trends support assumptions
+        - Establish baseline -- (ex: Historical spend and CAGR %)
+        - Identify red flags -- (ex: Year/Utility Outlier Detection)
+        - Quantifying expected ranges
+        - Informing where to focus -- (Ex: Peer analysis may show $/mile difference)
+        - Finding: Request is x% above trend--- warrants detailed review
+        - Proceed to dig into claims, evidence, contracts (confidential) 
+            -> recommendation -> adoption
+    
+    - ACTUAL?: Staff verifies if utility's specific claims are reasonable (the math add-up in terms of evidence, contracts, etc to support decision)
+
+Deliverables:
+    - Data pipeline (Python ETL extract/clean/joining FERC/EIA data)
+    - Analysis Module (Stat analysis -- Regression, trend, benchmark, outliers)
+    - Rev. Req. Model (Calc RR w/ Gap Analysis and Test-year projection)
+    - Bill Impact Calc (Resident. bill projection (could add sensitivity analysis scenarios)
+    - Visualization (Need to finish) (Trend charts, peer comparison, bill impact)
+    - Exec. Summary (Conclusive findings and staff-style recommendation)
+
+Data Sources: [2018 - 2023]
+    - FERC Form 1 via PUDL -- OM Expenses, Rate Base, Operating Revenue by FERC account
+    - EIA-861 -- Retail sales, Customer counts, revenue by customer class 
+    - Electric Utilities only
+
+Rate Case Calculations
+    1. Revenue Requirement --  Core Number
+     - Revenue Req = O&M + Depreciation + Taxes + Return on Rate Base
+     - OM : D2D operating costs (labor fuel maintenance customer service)
+     - Depreciation: Annual wear-and-tear on capital assets (poles, wires, powerplant)
+     - Return on Rate Base: Profit margin on invested capital
+     - Taxes: Federal + state income taxes
+
+    2. Bill Impact -- What customers care about
+     - Calc: 1. Take revenue requirement change
+          2. Allocate to customer classes
+          3. Divide by total kWh sales to get average rate ($/kWh)
+          4. Multiply by avg monthly usage (kWh) to get monthly bill
+          5. Compare current vs proposed
+        ex: Current res. bill (125/month), Proposed res. bill (134/month), 
+            change +9/month(+7.2%), Annual impact (+108/year)
+
+    3.Test Year Forecasting
+     - Rate cases don't use current costs- they use projected costs for a future year
+     - Base year: 2023 recorded costs (audited, known)
+     - Test year: 2025 projected costs(escalated by inflation,load growth,known change)
+    -> forecast_test_year_rr: func -> applies escalation factors to project a request
+
+    4. Statistical Analysis
+     - Trend Analysis -- requested increase consistent with historical patterns?
+     - Cost Driver Regression -- cost growth explained by legitimate factors?
+        - Note*: Post-2020 (Bankruptcy file), R^2: 0.658 -> 0.925 Regression Results
+        - Finding: Rate base is the dominant cost driver. For every $1 increase in rate base, 
+            O&M increases by $0.33. Customer count and sales volume are not statistically significant after controlling for rate base.
+        - High multicollinearity among cost drivers (customers, sales, rate base) limits interpretation of individual coeffs.
+     - Peer Benchmarking -- utility efficient compared to peers?
+     - Outlier Detection -- anomalous years that shouldn't set the baseline?
+     - Revenue Gap --  utility currently over- or under-collecting?
+     - Bill Impact -- ustomers? Is it affordable?
+
+    PROJECT ASSUMPTIONS (Not enough data)
+    - depreciation rate 3.5% (actual requires FERC Schedule 336)(~30yr avg asset life)
+    - WACC (industry standard ~7.5%)
+    - Tax rate of ~27% (combined fed 21 + state 6 as a standard assuption)
+    - Avg residential use: 500 kWh/month
+    - O&M Escalation: 3% (Inflation Proxy + slight labor cost growth)
+        - Actual: specific escalation proposal with contracts
+    - Rate base growth: 4% (Reflects ongoing Capital Investment trend)
+        - Actual: Utility proposes specific projects with studies
+
+Summary Metrics (Final)
+    Metric                                  PGE       SCE     SDGE
+    O&M/Customer (ex-Prod)                  $4,099    $1,353  $2,982
+    Peer Benchmark Comparison ($2811)       +46%      -52%    +6%
+    O&M CAGR                                +6.17% (*)    +0.74%  +0.62%
+    Monthly Bill                            $170      $162    $227    
+    Revenue Requirement (limited)           $27.9B    $22.9B  $6.5B
+    Revenue Gap                             +33%      +31%    +26%
+
+    (*) PGE CAGR 2020-2023 (post-bankruptcy filing baseline)
+
+Issues & Fixes     
+ - Double-counting expenses (corrected)
+    Problem: OM expenses inflated. Filtered to exclude subtotal rows
+ - Utility ID mapping (corrected)
+    PGE : 183, SCE : 155, SDGE : 218
+ - Rev. source mismatch
+    Replaced with FERC Form 1 revenue (account 400, electric only)
+ - PGE 2020 YEAR -40% YoY Reported outlier. 
+    - some context found: 2019/2020 filed Bankruptcy, CEO resignation, Wildfire liabilities
+ - Super High YoY CAGR PGE 2020
+    *Bankruptcy filing, Wildfire liabilities, CEO resignation
+    For regression and analyses, used 2020-2023 (post-bankruptcy baseline)
+        - Regression results improved significantly
+        - visualizations remain using 2018-2023
+
+Limitations
+ - No confidential paperwork > Can't verify item costs, specific projects/contracts
+    - Used aggregate categories; analysis serves mainly as baseline check not detailed audit
+ - assumptions:
+    - Depreciation varies but assumed 3.5% 
+    - WACC: Authorized ROE varies by proceeding, Approx. recent CPUC decisions 7.5%
+    - Tax Rate: Used combined federal + state tax 27%
+ - Can improve :
+    - Rate Design Analysis -> tariff schedules and load shape data
+    - Forecast review -> used historical actuals + standard escalaton (EIA-861), cant directly evaluate proposals where specific sales projections
+    - No cost allocation study -> used actual revenue shares as proxy
+
+Deliverables
+ - Completed:
+ - Data Pipeline: src/extract.py, transform.py, pipeline.py
+ - Analysis Module: src/analyze.py (trend, regression, benchmarking, outliers)
+ - Revenue Requirement Model: src/revenue_requirement.py
+ - Bill Impact Calculator: src/bill_impact.py
+ - Processed Data: analysis_ready.parquet (18 rows × 35 columns)
+ - Analysis Results: analysis_results.json
+
+ - Pending:
+ - Visualizations: trend charts, peer comparison, bill impact, waterfall
+ - Regulatory Memo: executive summary with findings and recommendation
+
+ - Visualizations
+    - Principles
+        - One chart, one takeaway
+        - Direct labeling
+        - Source citation
+        - SAFE PRACTICE RUN IN TERM BEFORE GENERATION
+        - rm data/processed/*.parquet
+        - rm data/processed/*.json
+        - rm outputs/figures/*.png
+    - Strategy
+        - OM Trend By Utility -- Tragectory of cost growth
+        - Peer Comparison: Cost per Customer -- Who's expensive
+        - Revenue Requirement Waterfall -- Break RR into components
+        - Revenue Gap / Utility -- Under/Overcollecting. Rate Pressure
+        - Bill Impact Comparison -- Translates $B into monthly dollar amount
+        - YoY Change Heatmap -- Highlights outliers visually 
+        - 
+
+Usage  
+    Rebuild pipeline+visualize
+    - rm -rf data/processed/*.parquet
+    - rm -rf data/processed/*.json
+    - rm -rf outputs/figures/*.png
+    - find . -type d -name "__pycache__" -exec rm -rf {} +
+
+    - source venv/bin/activate > activate virtual environment
+    - Visualizations: python3 -c "from src.visualize import generate_all_figures; generate_all_figures()"
+    - Pipeline: python3 src/pipeline.py
+    
+    - If you change analysis logic in analyze.py, run run_analysis.py. If you change data extraction or transformation, run pipeline.py.
