@@ -196,9 +196,11 @@ def plot_peer_comparison(
     save: bool = True,
 ) -> plt.Figure:
     """
-    Chart 2: Peer Comparison — Cost per Customer (Horizontal Bar).
+    Chart 2: Peer Comparison — GRC O&M Cost per Customer (Horizontal Bar).
     
-    Shows O&M per customer for each utility with peer average comparison.
+    Shows GRC-comparable O&M per customer for each utility with peer average.
+    GRC O&M = Distribution + Customer Service + (A&G × 70%)
+    Excludes: Production (ERRA), Transmission (FERC), 30% A&G (gas)
     """
     setup_style()
     
@@ -207,16 +209,29 @@ def plot_peer_comparison(
     
     # Filter to specified year
     data = df[df["report_year"] == year].copy()
-    data = data.sort_values("om_per_customer", ascending=True)
+    
+    # Use GRC O&M per customer if available, otherwise calculate
+    if "grc_om_per_customer" in data.columns:
+        metric_col = "grc_om_per_customer"
+    else:
+        # Fallback: calculate GRC O&M per customer
+        data["grc_om_per_customer"] = (
+            data["om_distribution"] +
+            data["om_customer_service"] +
+            data["om_admin_general"] * 0.70
+        ) / data["customers_total"]
+        metric_col = "grc_om_per_customer"
+    
+    data = data.sort_values(metric_col, ascending=True)
     
     fig, ax = plt.subplots(figsize=(10, 5))
     
     # Calculate peer average
-    peer_avg = data["om_per_customer"].mean()
+    peer_avg = data[metric_col].mean()
     
     # Plot horizontal bars
     utilities = data["utility_name"].tolist()
-    values = data["om_per_customer"].tolist()
+    values = data[metric_col].tolist()
     colors = [UTILITY_COLORS[u] for u in utilities]
     
     bars = ax.barh(utilities, values, color=colors, height=0.6, edgecolor="white")
@@ -261,11 +276,11 @@ def plot_peer_comparison(
         )
     
     # Find highest above average for subtitle
-    max_util = data.loc[data["om_per_customer"].idxmax()]
-    max_pct = ((max_util["om_per_customer"] - peer_avg) / peer_avg) * 100
+    max_util = data.loc[data[metric_col].idxmax()]
+    max_pct = ((max_util[metric_col] - peer_avg) / peer_avg) * 100
     
     # Title and subtitle
-    ax.set_title(f"O&M Cost per Customer ({year})", fontsize=14, fontweight="bold", pad=20)
+    ax.set_title(f"GRC O&M Cost per Customer ({year})", fontsize=14, fontweight="bold", pad=20)
     ax.text(
         0.5, 1.02,
         f"{max_util['utility_name']} spends {max_pct:.0f}% above peer average",
@@ -275,10 +290,21 @@ def plot_peer_comparison(
         color="gray",
     )
     
-    ax.set_xlabel("O&M per Customer ($)")
+    ax.set_xlabel("GRC O&M per Customer ($)")
     ax.set_xlim(0, max(values) * 1.3)
     
-    add_source_citation(ax)
+    # Add note about what GRC O&M includes
+    ax.text(
+        0.5, -0.12,
+        "GRC O&M = Distribution + Customer Service + (A&G × 70%). Excludes Production & Transmission.",
+        transform=ax.transAxes,
+        fontsize=8,
+        ha="center",
+        color="gray",
+        style="italic",
+    )
+    
+    add_source_citation(ax, y_offset=-0.17)
     
     plt.tight_layout()
     
@@ -297,9 +323,17 @@ def plot_rr_waterfall(
     save: bool = True,
 ) -> plt.Figure:
     """
-    Chart 3: Revenue Requirement Waterfall.
+    Chart 3: GRC-Comparable Revenue Requirement Waterfall.
     
-    Shows RR components building up to total.
+    Shows GRC RR components (CPUC-regulated costs only):
+    - Distribution O&M
+    - Customer Service O&M
+    - A&G (70% electric allocation)
+    - Depreciation
+    - Return on Rate Base
+    - Taxes (15%)
+    
+    Excludes: Production (ERRA), Transmission (FERC), 30% A&G (gas)
     """
     setup_style()
     
@@ -309,29 +343,55 @@ def plot_rr_waterfall(
     # Filter to utility and year
     row = df[(df["utility_name"] == utility) & (df["report_year"] == year)].iloc[0]
     
-    # Get RR components (use om_total minus om_other for O&M)
-    om_expense = row["om_total"] - row.get("om_other", 0)
-    depreciation = row["depreciation"]
-    return_on_rb = row["return_on_rate_base"]
-    taxes = row["taxes"]
-    total_rr = row["revenue_requirement"]
+    # Get GRC-comparable components
+    om_distribution = row["om_distribution"]
+    om_customer_service = row["om_customer_service"]
+    om_ag_allocated = row.get("om_ag_allocated", row["om_admin_general"] * 0.70)
+    grc_depreciation = row.get("grc_depreciation", row["depreciation"])
+    grc_return = row.get("grc_return_on_rate_base", row["return_on_rate_base"])
+    grc_taxes = row.get("grc_taxes", row["taxes"])
+    grc_rr = row.get("grc_revenue_requirement", row["revenue_requirement"])
     
-    # Waterfall data
-    categories = ["O&M\n(excl. pass-through)", "Depreciation", "Return on\nRate Base", "Taxes", "Revenue\nRequirement"]
-    values = [om_expense, depreciation, return_on_rb, taxes, total_rr]
+    # Waterfall data - GRC components
+    categories = [
+        "Distribution\nO&M",
+        "Customer\nService",
+        "A&G\n(70%)",
+        "Depreciation",
+        "Return on\nRate Base",
+        "Taxes\n(15%)",
+        "GRC Revenue\nRequirement",
+    ]
+    values = [
+        om_distribution,
+        om_customer_service,
+        om_ag_allocated,
+        grc_depreciation,
+        grc_return,
+        grc_taxes,
+        grc_rr,
+    ]
     
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(14, 6))
     
     # Calculate waterfall positions
     cumulative = 0
     bars_data = []
+    
+    # O&M components in one color, capital in another
+    om_color = "#4C72B0"  # Blue for O&M
+    capital_color = "#9B59B6"  # Purple for capital costs
+    tax_color = "#E74C3C"  # Red for taxes
+    total_color = "#55A868"  # Green for total
+    
+    colors = [om_color, om_color, om_color, capital_color, capital_color, tax_color]
     
     for i, (cat, val) in enumerate(zip(categories[:-1], values[:-1])):
         bars_data.append({
             "category": cat,
             "bottom": cumulative,
             "height": val,
-            "color": "#4C72B0",  # Blue for additions
+            "color": colors[i],
         })
         cumulative += val
     
@@ -339,8 +399,8 @@ def plot_rr_waterfall(
     bars_data.append({
         "category": categories[-1],
         "bottom": 0,
-        "height": total_rr,
-        "color": "#55A868",  # Green for total
+        "height": grc_rr,
+        "color": total_color,
     })
     
     # Plot bars
@@ -357,7 +417,7 @@ def plot_rr_waterfall(
             width=0.6,
         )
         
-        # Add connecting lines between bars (except for last)
+        # Add connecting lines between bars (except before total)
         if i < len(bars_data) - 2:
             next_bottom = bars_data[i + 1]["bottom"]
             ax.plot(
@@ -376,14 +436,14 @@ def plot_rr_waterfall(
             xy=(i, label_y),
             ha="center",
             va="center",
-            fontsize=11,
+            fontsize=10,
             fontweight="bold",
-            color="white" if bar["height"] > 1e9 else "black",
+            color="white" if bar["height"] > 0.5e9 else "black",
         )
     
     # X-axis
     ax.set_xticks(x_positions)
-    ax.set_xticklabels([b["category"] for b in bars_data], fontsize=10)
+    ax.set_xticklabels([b["category"] for b in bars_data], fontsize=9)
     
     # Y-axis
     ax.set_ylabel("$ Billions")
@@ -391,25 +451,48 @@ def plot_rr_waterfall(
     
     # Title and subtitle
     ax.set_title(
-        f"{utility} Revenue Requirement Components ({year})",
+        f"{utility} GRC-Comparable Revenue Requirement ({year})",
         fontsize=14,
         fontweight="bold",
         pad=20,
     )
+    
+    # Calculate GRC O&M total for subtitle
+    grc_om = om_distribution + om_customer_service + om_ag_allocated
     ax.text(
         0.5, 1.02,
-        f"Total: {format_billions(total_rr)}",
+        f"GRC O&M: {format_billions(grc_om)} | Total GRC RR: {format_billions(grc_rr)}",
         transform=ax.transAxes,
-        fontsize=11,
+        fontsize=10,
         ha="center",
         color="gray",
     )
+    
+    # Legend
+    legend_elements = [
+        mpatches.Patch(color=om_color, label="O&M (GRC-recoverable)"),
+        mpatches.Patch(color=capital_color, label="Capital costs"),
+        mpatches.Patch(color=tax_color, label="Taxes"),
+        mpatches.Patch(color=total_color, label="Total GRC RR"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper left", framealpha=0.9, fontsize=9)
     
     # Remove top and right spines
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     
-    add_source_citation(ax)
+    # Add note about exclusions
+    ax.text(
+        0.5, -0.15,
+        "Excludes: Production (ERRA), Transmission (FERC), 30% A&G (gas allocation)",
+        transform=ax.transAxes,
+        fontsize=9,
+        ha="center",
+        color="gray",
+        style="italic",
+    )
+    
+    add_source_citation(ax, y_offset=-0.2)
     
     plt.tight_layout()
     
@@ -430,7 +513,9 @@ def plot_revenue_gap(
     """
     Chart 4: Revenue Gap by Utility (Bar Chart).
     
-    Shows gap between calculated RR and actual revenue.
+    Shows gap between TOTAL calculated RR and actual FERC operating revenue.
+    Note: Uses total utility RR (not GRC-comparable) because actual revenue
+    includes all sources (GRC + ERRA + transmission + other).
     """
     setup_style()
     
@@ -471,14 +556,14 @@ def plot_revenue_gap(
     
     # Title and subtitle
     ax.set_title(
-        f"Revenue Gap: Calculated RR vs Actual Revenue ({year})",
+        f"Revenue Gap: Total Utility RR vs Operating Revenue ({year})",
         fontsize=14,
         fontweight="bold",
         pad=20,
     )
     ax.text(
         0.5, 1.02,
-        "Negative = utility collecting more than calculated RR",
+        "Total RR includes all O&M (GRC + ERRA + Transmission)",
         transform=ax.transAxes,
         fontsize=10,
         ha="center",
@@ -495,7 +580,18 @@ def plot_revenue_gap(
     ]
     ax.legend(handles=legend_elements, loc="upper right", framealpha=0.9)
     
-    add_source_citation(ax)
+    # Add note about methodology
+    ax.text(
+        0.5, -0.12,
+        "Note: Gap reflects modeling assumptions (3.5% depreciation, 7.5% WACC, 27% tax)",
+        transform=ax.transAxes,
+        fontsize=8,
+        ha="center",
+        color="gray",
+        style="italic",
+    )
+    
+    add_source_citation(ax, y_offset=-0.17)
     
     plt.tight_layout()
     

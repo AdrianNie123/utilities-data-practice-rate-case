@@ -1,12 +1,30 @@
 """Revenue requirement calculations for Rate Case Analysis.
 
-ASSUMPTIONS (Industry Standards?):
-- Depreciation rate: 3.5% of rate_base (typical utility asset life ~30 years)
-- WACC (Weighted Average Cost of Capital): 7.5% (approximates CPUC-authorized returns)
-- Tax rate: 27% (combined federal 21% + state 6%)
+TWO METHODOLOGIES:
 
-These assumptions are used because the actual values are not available in our datasets.
-In a real rate case, these would be determined through regulatory proceedings.
+1. TOTAL UTILITY REVENUE REQUIREMENT (calculate_revenue_requirement)
+   - Includes all O&M costs
+   - 27% tax gross-up
+   - Useful for comparing to total operating revenues
+
+2. GRC-COMPARABLE REVENUE REQUIREMENT (calculate_grc_revenue_requirement)
+   - Only includes CPUC-regulated costs:
+     * Distribution O&M
+     * Customer Service O&M  
+     * A&G × 70% (electric allocation)
+   - Excludes:
+     * Production costs (passed through via ERRA)
+     * Transmission (FERC-regulated)
+     * Fuel/purchased power (balancing account)
+   - 15% simplified tax rate
+   - Comparable to actual GRC filings (~3% variance expected from public data)
+
+ASSUMPTIONS:
+- Depreciation rate: 3.5% of rate_base (typical utility asset life ~30 years)
+- WACC: 7.5% (approximates CPUC-authorized returns)
+- Total tax rate: 27% (combined federal 21% + state 6%)
+- GRC tax rate: 15% (simplified, excludes pass-through cost tax effects)
+- A&G electric allocation: 70% (remainder is gas operations)
 """
 
 import pandas as pd
@@ -20,6 +38,10 @@ from src.config import DATA_PROCESSED
 DEPRECIATION_RATE: float = 0.035  # 3.5% of rate base
 WACC: float = 0.075  # 7.5% weighted average cost of capital
 TAX_RATE: float = 0.27  # 27% combined federal + state tax rate
+
+# GRC-comparable assumptions
+GRC_TAX_RATE: float = 0.15  # 15% simplified tax for GRC components
+AG_ELECTRIC_ALLOCATION: float = 0.70  # 70% of A&G allocated to electric
 
 
 def calculate_revenue_requirement(
@@ -103,6 +125,147 @@ def calculate_revenue_requirement(
         "tax_rate": tax_rate,
         "exclude_passthrough": exclude_passthrough,
     }
+
+
+def calculate_grc_revenue_requirement(
+    row: pd.Series,
+    depreciation_rate: float = DEPRECIATION_RATE,
+    wacc: float = WACC,
+    tax_rate: float = GRC_TAX_RATE,
+    ag_allocation: float = AG_ELECTRIC_ALLOCATION,
+) -> Dict[str, float]:
+    """
+    Calculate GRC-comparable revenue requirement for a single utility-year.
+
+    GRC (General Rate Case) only covers CPUC-regulated costs:
+    - Distribution O&M
+    - Customer Service O&M
+    - A&G × 70% (electric allocation)
+    Revenue requirement formula:
+        RR = O&M (GRC) + Depreciation + Return on Rate Base + Taxes
+    EXCLUDES (not part of GRC):
+    - Production O&M (recovered via ERRA balancing account)
+    - Transmission O&M (FERC-regulated, not CPUC)
+    - Purchased power (pass-through via balancing account)
+
+    Args:
+        row: DataFrame row with om_distribution, om_customer_service, 
+             om_admin_general, and rate_base
+        depreciation_rate: Annual depreciation as fraction of rate_base
+        wacc: Weighted average cost of capital
+        tax_rate: GRC tax rate (default 15%)
+        ag_allocation: Fraction of A&G allocated to electric (default 70%)
+
+    Returns:
+        Dictionary with GRC revenue requirement components
+
+    Raises:
+        ValueError: If required columns are missing
+    """
+    # Validate required columns
+    required_cols: list = ["om_distribution", "om_customer_service", "om_admin_general", "rate_base"]
+    for col in required_cols:
+        if col not in row.index or pd.isna(row.get(col)):
+            raise ValueError(f"Missing or null value for: {col}")
+
+    # Extract GRC-recoverable O&M components
+    om_distribution: float = float(row["om_distribution"])
+    om_customer_service: float = float(row["om_customer_service"])
+    om_admin_general: float = float(row["om_admin_general"])
+    rate_base: float = float(row["rate_base"])
+
+    # Apply electric allocation to A&G (remainder is gas)
+    om_ag_allocated: float = om_admin_general * ag_allocation
+
+    # GRC-comparable O&M (excludes production, transmission)
+    grc_om: float = om_distribution + om_customer_service + om_ag_allocated
+
+    # Depreciation and return on rate base
+    if rate_base <= 0:
+        depreciation: float = 0.0
+        return_on_rate_base: float = 0.0
+    else:
+        depreciation: float = rate_base * depreciation_rate
+        return_on_rate_base: float = rate_base * wacc
+
+    # Pre-tax total
+    pre_tax_total: float = grc_om + depreciation + return_on_rate_base
+
+    # Simplified tax calculation for GRC (15% of pre-tax)
+    taxes: float = pre_tax_total * tax_rate
+
+    # Total GRC revenue requirement
+    grc_revenue_requirement: float = pre_tax_total + taxes
+
+    return {
+        "om_distribution": om_distribution,
+        "om_customer_service": om_customer_service,
+        "om_admin_general": om_admin_general,
+        "om_ag_allocated": om_ag_allocated,
+        "grc_om": grc_om,
+        "depreciation": depreciation,
+        "return_on_rate_base": return_on_rate_base,
+        "pre_tax_total": pre_tax_total,
+        "taxes": taxes,
+        "grc_revenue_requirement": grc_revenue_requirement,
+        "rate_base": rate_base,
+        "depreciation_rate": depreciation_rate,
+        "wacc": wacc,
+        "tax_rate": tax_rate,
+        "ag_allocation": ag_allocation,
+    }
+
+
+def apply_grc_rr_to_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Apply GRC-comparable revenue requirement calculation to all rows.
+
+    Adds columns:
+    - grc_om: Distribution + Customer Service + (A&G × 70%)
+    - grc_depreciation: Rate base × 3.5%
+    - grc_return_on_rate_base: Rate base × 7.5%
+    - grc_taxes: Pre-tax total × 15%
+    - grc_revenue_requirement: Total GRC RR
+
+    Args:
+        df: Analysis-ready DataFrame
+
+    Returns:
+        DataFrame with GRC revenue requirement columns added
+    """
+    required_columns: list = ["om_distribution", "om_customer_service", "om_admin_general", "rate_base"]
+    missing: list = [col for col in required_columns if col not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns for GRC calculation: {missing}")
+
+    result: pd.DataFrame = df.copy()
+
+    # Calculate GRC RR components for each row
+    grc_components: list = []
+    for idx, row in result.iterrows():
+        try:
+            grc: Dict[str, float] = calculate_grc_revenue_requirement(row)
+            grc_components.append(grc)
+        except ValueError:
+            grc_components.append({
+                "grc_om": np.nan,
+                "om_ag_allocated": np.nan,
+                "depreciation": np.nan,
+                "return_on_rate_base": np.nan,
+                "taxes": np.nan,
+                "grc_revenue_requirement": np.nan,
+            })
+
+    # Add GRC columns
+    grc_df: pd.DataFrame = pd.DataFrame(grc_components)
+    result["grc_om"] = grc_df["grc_om"].values
+    result["om_ag_allocated"] = grc_df["om_ag_allocated"].values
+    result["grc_depreciation"] = grc_df["depreciation"].values
+    result["grc_return_on_rate_base"] = grc_df["return_on_rate_base"].values
+    result["grc_taxes"] = grc_df["taxes"].values
+    result["grc_revenue_requirement"] = grc_df["grc_revenue_requirement"].values
+
+    return result
 
 
 def apply_rr_to_dataset(df: pd.DataFrame) -> pd.DataFrame:
@@ -320,4 +483,111 @@ def rr_sensitivity_by_wacc(
         })
 
     return pd.DataFrame(results)
+
+
+def compare_rr_methodologies(df: pd.DataFrame, year: int = 2023) -> pd.DataFrame:
+    """
+    Compare total utility RR vs GRC-comparable RR for a given year.
+
+    Shows what portion of utility costs are GRC-recoverable vs pass-through.
+
+    Args:
+        df: Analysis-ready DataFrame with both RR calculations applied
+        year: Year to analyze (default 2023)
+
+    Returns:
+        DataFrame comparing methodologies by utility
+    """
+    year_data: pd.DataFrame = df[df["report_year"] == year].copy()
+
+    if year_data.empty:
+        raise ValueError(f"No data found for year {year}")
+
+    comparison: list = []
+
+    for _, row in year_data.iterrows():
+        utility_name: str = row["utility_name"]
+
+        # Total utility RR (if calculated)
+        total_rr: float = float(row.get("revenue_requirement", np.nan))
+
+        # GRC-comparable RR (if calculated)
+        grc_rr: float = float(row.get("grc_revenue_requirement", np.nan))
+
+        # Component breakdown
+        om_production: float = float(row.get("om_production", 0))
+        om_transmission: float = float(row.get("om_transmission", 0))
+        om_distribution: float = float(row.get("om_distribution", 0))
+        om_customer_service: float = float(row.get("om_customer_service", 0))
+        om_admin_general: float = float(row.get("om_admin_general", 0))
+        grc_om: float = float(row.get("grc_om", np.nan))
+
+        # Calculate excluded costs
+        excluded_om: float = om_production + om_transmission + (om_admin_general * 0.30)
+
+        # GRC share of total
+        grc_share: float = (grc_rr / total_rr * 100.0) if total_rr > 0 else np.nan
+
+        comparison.append({
+            "utility_name": utility_name,
+            "year": year,
+            "total_om": float(row.get("om_total", np.nan)),
+            "grc_om": grc_om,
+            "excluded_om": excluded_om,
+            "om_production": om_production,
+            "om_transmission": om_transmission,
+            "om_distribution": om_distribution,
+            "om_customer_service": om_customer_service,
+            "om_ag_full": om_admin_general,
+            "om_ag_allocated": om_admin_general * 0.70,
+            "total_revenue_requirement": total_rr,
+            "grc_revenue_requirement": grc_rr,
+            "grc_share_of_total_pct": grc_share,
+        })
+
+    return pd.DataFrame(comparison)
+
+
+def print_grc_comparison(df: pd.DataFrame, year: int = 2023) -> None:
+    """
+    Print formatted comparison of GRC-comparable vs total RR.
+
+    Args:
+        df: DataFrame with both RR calculations applied
+        year: Year to display
+    """
+    comparison: pd.DataFrame = compare_rr_methodologies(df, year)
+
+    print("\n" + "=" * 80)
+    print(f"GRC-COMPARABLE vs TOTAL REVENUE REQUIREMENT ({year})")
+    print("=" * 80)
+    print("\nMethodology Differences:")
+    print("  Total RR: All O&M + Depreciation + Return + 27% taxes")
+    print("  GRC RR:   Dist + Cust Svc + (A&G × 70%) + Depreciation + Return + 15% taxes")
+    print("  Excluded: Production (ERRA), Transmission (FERC), 30% A&G (gas)")
+    print("\n" + "-" * 80)
+
+    for _, row in comparison.iterrows():
+        utility: str = row["utility_name"]
+        total_rr: float = row["total_revenue_requirement"]
+        grc_rr: float = row["grc_revenue_requirement"]
+        grc_share: float = row["grc_share_of_total_pct"]
+
+        print(f"\n{utility}:")
+        print(f"  GRC O&M Components:")
+        print(f"    Distribution:       ${row['om_distribution'] / 1e9:,.2f}B")
+        print(f"    Customer Service:   ${row['om_customer_service'] / 1e9:,.2f}B")
+        print(f"    A&G (70%):          ${row['om_ag_allocated'] / 1e9:,.2f}B")
+        print(f"    ---")
+        print(f"    GRC O&M Total:      ${row['grc_om'] / 1e9:,.2f}B")
+        print(f"  Excluded from GRC:")
+        print(f"    Production:         ${row['om_production'] / 1e9:,.2f}B")
+        print(f"    Transmission:       ${row['om_transmission'] / 1e9:,.2f}B")
+        print(f"    A&G (30% gas):      ${row['om_ag_full'] * 0.30 / 1e9:,.2f}B")
+        print(f"  Revenue Requirements:")
+        print(f"    Total Utility RR:   ${total_rr / 1e9:,.2f}B")
+        print(f"    GRC-Comparable RR:  ${grc_rr / 1e9:,.2f}B")
+        print(f"    GRC Share of Total: {grc_share:.1f}%")
+
+    print("\n" + "=" * 80)
 

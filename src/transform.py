@@ -202,7 +202,9 @@ def derive_metrics(df: pd.DataFrame) -> pd.DataFrame:
     Derive calculated metrics from base data.
 
     Calculates:
+    - grc_om = Distribution + Customer Service + (A&G × 70%)
     - om_per_customer = om_total / customers_total
+    - grc_om_per_customer = grc_om / customers_total (GRC-comparable)
     - om_per_mwh = om_total / sales_mwh_total
     - rate_base_per_customer = rate_base / customers_total
     - revenue_per_customer = (revenue_total_k * 1000) / customers_total
@@ -215,8 +217,20 @@ def derive_metrics(df: pd.DataFrame) -> pd.DataFrame:
     """
     df_copy: pd.DataFrame = df.copy()
     
-    # om_per_customer
+    # GRC-comparable O&M (excludes production, transmission, 30% A&G)
+    # Only CPUC-regulated costs: Distribution + Customer Service + (A&G × 70%)
+    ag_allocation: float = 0.70  # 70% electric allocation
+    df_copy["grc_om"] = (
+        df_copy["om_distribution"] +
+        df_copy["om_customer_service"] +
+        (df_copy["om_admin_general"] * ag_allocation)
+    )
+    
+    # om_per_customer (total O&M basis)
     df_copy["om_per_customer"] = df_copy["om_total"] / df_copy["customers_total"].replace(0, pd.NA)
+    
+    # grc_om_per_customer (GRC-comparable basis - for peer comparison)
+    df_copy["grc_om_per_customer"] = df_copy["grc_om"] / df_copy["customers_total"].replace(0, pd.NA)
     
     # om_per_mwh
     df_copy["om_per_mwh"] = df_copy["om_total"] / df_copy["sales_mwh_total"].replace(0, pd.NA)
@@ -252,6 +266,7 @@ def select_final_columns(df: pd.DataFrame) -> pd.DataFrame:
         "om_admin_general",
         "om_other",
         "om_total",
+        "grc_om",
         "rate_base",
         "operating_revenues_ferc",
         "sales_mwh_residential",
@@ -267,6 +282,7 @@ def select_final_columns(df: pd.DataFrame) -> pd.DataFrame:
         "revenue_industrial_k",
         "revenue_total_k",
         "om_per_customer",
+        "grc_om_per_customer",
         "om_per_mwh",
         "rate_base_per_customer",
         "revenue_per_customer",

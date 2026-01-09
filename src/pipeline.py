@@ -27,7 +27,9 @@ from src.transform import (
 )
 from src.revenue_requirement import (
     apply_rr_to_dataset,
+    apply_grc_rr_to_dataset,
     forecast_test_year,
+    print_grc_comparison,
 )
 from src.bill_impact import (
     bill_impact_analysis,
@@ -146,7 +148,7 @@ def run_revenue_and_bill_analysis(df: pd.DataFrame) -> Dict:
 
     Returns:
         Dictionary with:
-        - rr_dataset: Full dataset with RR calculations
+        - rr_dataset: Full dataset with RR calculations (both total and GRC)
         - test_year_forecast: Projected RR by utility
         - bill_impacts: Bill impact summary by utility
         - sensitivity: Sensitivity results for each utility
@@ -155,11 +157,16 @@ def run_revenue_and_bill_analysis(df: pd.DataFrame) -> Dict:
 
     results: Dict = {}
 
-    # Apply revenue requirement calculations to full dataset
-    logger.info("Calculating revenue requirements...")
+    # Apply TOTAL revenue requirement calculations
+    logger.info("Calculating total utility revenue requirements...")
     rr_dataset: pd.DataFrame = apply_rr_to_dataset(df)
+    logger.info(f"Total RR calculated for {len(rr_dataset)} rows")
+
+    # Apply GRC-COMPARABLE revenue requirement calculations
+    logger.info("Calculating GRC-comparable revenue requirements...")
+    rr_dataset = apply_grc_rr_to_dataset(rr_dataset)
     results["rr_dataset"] = rr_dataset
-    logger.info(f"Revenue requirement calculated for {len(rr_dataset)} rows")
+    logger.info(f"GRC RR calculated for {len(rr_dataset)} rows")
 
     # Forecast test year
     logger.info("Forecasting test year revenue requirement...")
@@ -203,33 +210,53 @@ def print_analysis_summary(results: Dict) -> None:
     rr_dataset: pd.DataFrame = results["rr_dataset"]
     rr_2023: pd.DataFrame = rr_dataset[rr_dataset["report_year"] == 2023]
 
-    print("\n1. REVENUE REQUIREMENT BY UTILITY (2023)")
+    print("\n1. UTILITY REVENUE REQUIREMENT (2023)")
     print("-" * 60)
     for _, row in rr_2023.iterrows():
-        print(f"   {row['utility_name']:10s}: ${row['revenue_requirement']:,.0f}")
+        print(f"   {row['utility_name']:10s}: ${row['revenue_requirement'] / 1e9:,.2f}B")
+
+    # GRC-Comparable Revenue Requirement
+    print("\n2. GRC-COMPARABLE REVENUE REQUIREMENT (2023)")
+    print("   (Dist + Cust Svc + A&G×70% + Depreciation + Return + 15% tax)")
+    print("-" * 60)
+    for _, row in rr_2023.iterrows():
+        grc_rr: float = row.get("grc_revenue_requirement", 0)
+        total_rr: float = row.get("revenue_requirement", 1)
+        grc_share: float = (grc_rr / total_rr * 100) if total_rr > 0 else 0
+        print(f"   {row['utility_name']:10s}: ${grc_rr / 1e9:,.2f}B ({grc_share:.0f}% of total)")
+
+    # GRC O&M Breakdown
+    print("\n3. GRC O&M BREAKDOWN (2023)")
+    print("-" * 60)
+    for _, row in rr_2023.iterrows():
+        print(f"   {row['utility_name']:10s}:")
+        print(f"      Distribution:     ${row['om_distribution'] / 1e9:,.2f}B")
+        print(f"      Customer Service: ${row['om_customer_service'] / 1e9:,.2f}B")
+        print(f"      A&G (70%):        ${row['om_admin_general'] * 0.70 / 1e9:,.2f}B")
+        print(f"      GRC O&M Total:    ${row.get('grc_om', 0) / 1e9:,.2f}B")
 
     # Revenue gap
-    print("\n2. REVENUE GAP (Calculated RR vs Actual Revenue)")
+    print("\n4. REVENUE GAP (Total RR vs Actual Revenue)")
     print("-" * 60)
     for _, row in rr_2023.iterrows():
         gap_sign: str = "+" if row["revenue_gap"] > 0 else ""
         print(
-            f"   {row['utility_name']:10s}: {gap_sign}${row['revenue_gap']:,.0f} "
+            f"   {row['utility_name']:10s}: {gap_sign}${row['revenue_gap'] / 1e9:,.2f}B "
             f"({row['revenue_gap_pct']:+.1f}%)"
         )
 
     # Test year forecast
-    print("\n3. PROJECTED RR CHANGE (2023 → 2024)")
+    print("\n5. PROJECTED RR CHANGE (2023 → 2024)")
     print("-" * 60)
     forecast: pd.DataFrame = results["test_year_forecast"]
     for _, row in forecast.iterrows():
         print(
-            f"   {row['utility_name']:10s}: ${row['base_year_rr']:,.0f} → "
-            f"${row['forecast_year_rr']:,.0f} ({row['rr_change_pct']:+.1f}%)"
+            f"   {row['utility_name']:10s}: ${row['base_year_rr'] / 1e9:,.2f}B → "
+            f"${row['forecast_year_rr'] / 1e9:,.2f}B ({row['rr_change_pct']:+.1f}%)"
         )
 
     # Bill impacts
-    print("\n4. RESIDENTIAL BILL IMPACT")
+    print("\n6. RESIDENTIAL BILL IMPACT")
     print("-" * 60)
     bill_impacts: pd.DataFrame = results["bill_impacts"]
     for _, row in bill_impacts.iterrows():
@@ -240,7 +267,10 @@ def print_analysis_summary(results: Dict) -> None:
         )
 
     print("\n" + "=" * 80)
-    print("Assumptions: Depreciation=3.5%, WACC=7.5%, Tax=27%, O&M escalation=3%, RB growth=4%")
+    print("METHODOLOGY NOTES:")
+    print("  Total RR: All O&M + Depreciation + Return + 27% taxes")
+    print("  GRC RR:   Dist + Cust Svc + (A&G × 70%) + Depreciation + Return + 15% taxes")
+    print("  Excluded from GRC: Production (ERRA), Transmission (FERC), 30% A&G (gas)")
     print("=" * 80)
 
 
