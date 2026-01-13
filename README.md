@@ -1,4 +1,4 @@
-# Rate Case Analysis
+# Project: Utilities Analysis (Rate Case Data)
 
 A data pipeline for analyzing California Investor-Owned Utility (IOU) costs, revenues, and operational metrics using FERC Form 1 and EIA-861 data.
 
