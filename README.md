@@ -118,7 +118,7 @@ Built pipeline to raise specific exceptions for:
 Calculates utility revenue requirement using standard regulatory formula:
 
 ```
-Revenue Requirement = O&M + Depreciation + Return on Rate Base + Taxes?
+Revenue Requirement = O&M + Depreciation + Return on Rate Base + Taxes* (* Source: [Google](https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs))
 ```
 
 **Assumptions (documented in code):**
