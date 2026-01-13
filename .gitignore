@@ -8,3 +8,4 @@ data/FERC/
 data/processed/*.parquet
 data/processed/*.json
 
+rate-case-slides/node_modules/
